@@ -28,4 +28,6 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
-          tags: sayansanpui/thumbnailer:latest
+          tags: |
+            sayansanpui/thumbnailer:latest
+            sayansanpui/thumbnailer:${{ github.sha }}

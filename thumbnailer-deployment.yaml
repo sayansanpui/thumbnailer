@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: thumbnailer-deployment
+  labels:
+    app: thumbnailer
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: thumbnailer
+  template:
+    metadata:
+      labels:
+        app: thumbnailer
+    spec:
+      containers:
+        - name: thumbnailer
+          image: sayansanpui/thumbnailer:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: SECRET_KEY
+              value: "your-secret-key-here"
+            - name: IMAGE_WIDTH
+              value: "300"
+            - name: IMAGE_HEIGHT
+              value: "300"
+          resources:
+            limits:
+              cpu: 200m
+              memory: 256Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
