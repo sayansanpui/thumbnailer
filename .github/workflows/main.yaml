@@ -28,4 +28,4 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
-          tags: yourdockerhubusername/yourimagename:latest
+          tags: sayansanpui/thumbnailer:latest
