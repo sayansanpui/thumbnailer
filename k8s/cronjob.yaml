@@ -1,0 +1,46 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: image-auto-updater
+spec:
+  schedule: "*/5 * * * *" # every 5 minutes
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: updater
+              image: alpine/git
+              command:
+                - sh
+                - -c
+                - |
+                  set -e
+
+                  REPO_URL="https://<username>:<gh_token>@github.com/your-org/your-repo.git"
+                  BRANCH="main"
+                  IMAGE="sayansanpui/thumbnailer"
+                  TMP_DIR=$(mktemp -d)
+
+                  apk add --no-cache curl jq
+
+                  echo "[*] Cloning Git repo"
+                  git clone --depth=1 -b "$BRANCH" "$REPO_URL" "$TMP_DIR"
+                  cd "$TMP_DIR/k8s"
+
+                  LATEST_DIGEST=$(curl -s https://hub.docker.com/v2/repositories/${IMAGE}/tags/latest | jq -r '.images[] | select(.architecture=="amd64") | .digest' | head -n1)
+                  CURRENT_DIGEST=$(grep 'digest:' deployment.yaml | awk '{print $2}' | tr -d '"')
+
+                  if [ "$LATEST_DIGEST" != "$CURRENT_DIGEST" ]; then
+                    echo "New digest found: $LATEST_DIGEST"
+                    sed -i "s|digest: .*|digest: \"$LATEST_DIGEST\"|" deployment.yaml
+
+                    git config user.email "ci-bot@yourorg.com"
+                    git config user.name "CI Bot"
+                    git add deployment.yaml
+                    git commit -m "Update digest to $LATEST_DIGEST"
+                    git push origin "$BRANCH"
+                  else
+                    echo "Digest is up to date. No changes made."
+                  fi

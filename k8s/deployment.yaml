@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: thumbnailer
+  labels:
+    app: thumbnailer
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: thumbnailer
+  template:
+    metadata:
+      labels:
+        app: thumbnailer
+      annotations:
+        digest: "sha256:initial-placeholder" # Will be updated by CronJob
+    spec:
+      containers:
+        - name: thumbnailer
+          image: sayansanpui/thumbnailer:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: thumbnailer-service
+spec:
+  type: LoadBalancer
+  selector:
+    app: thumbnailer
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
