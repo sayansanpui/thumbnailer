@@ -60,3 +60,7 @@ def resize_image(width=IMAGE_WIDTH, height=IMAGE_HEIGHT):
     image.save(buffer, "JPEG", quality=80)
     buffer.seek(0)
     return send_file(buffer, mimetype=f.mimetype, as_attachment=True, download_name=f.filename)
+
+
+if __name__ == "__main__":
+    app.run(debug=True)
