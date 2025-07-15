@@ -3,7 +3,7 @@ name: Build and Push Docker Image
 on:
   push:
     branches:
-      - main # or 'master' depending on your default branch
+      - main # Change this if your default branch is 'master' or something else
 
 jobs:
   build-and-push:
@@ -22,12 +22,13 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Build and Push Docker image
+      - name: Build and Push Docker image (Multi-Arch)
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./Dockerfile
           push: true
+          platforms: linux/amd64,linux/arm64
           tags: |
             sayansanpui/thumbnailer:latest
             sayansanpui/thumbnailer:${{ github.sha }}

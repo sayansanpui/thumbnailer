@@ -1,0 +1,87 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: thumbnailer
+  labels:
+    app: thumbnailer
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: thumbnailer
+  template:
+    metadata:
+      labels:
+        app: thumbnailer
+    spec:
+      containers:
+        - name: thumbnailer
+          image: sayansanpui/thumbnailer:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: thumbnailer-service
+spec:
+  type: LoadBalancer
+  selector:
+    app: thumbnailer
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: image-digest-cache
+data:
+  digest: ""
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: image-auto-updater
+spec:
+  schedule: "*/5 * * * *" # every 5 minutes
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: updater
+              image: curlimages/curl:latest
+              command:
+                - sh
+                - -c
+                - |
+                  set -e
+
+                  IMAGE="sayansanpui/thumbnailer"
+                  LATEST_DIGEST=$(curl -s https://hub.docker.com/v2/repositories/$IMAGE/tags/latest | jq -r '.images[] | select(.architecture=="amd64") | .digest' | head -n1)
+
+                  CURRENT_DIGEST=$(kubectl get configmap image-digest-cache -o jsonpath="{.data.digest}")
+
+                  if [ "$LATEST_DIGEST" != "$CURRENT_DIGEST" ]; then
+                    echo "New image detected: $LATEST_DIGEST"
+                    kubectl patch deployment thumbnailer -p "{\"spec\":{\"template\":{\"metadata\":{\"annotations\":{\"digest\":\"$LATEST_DIGEST\"}}}}}"
+                    kubectl create configmap image-digest-cache --from-literal=digest=$LATEST_DIGEST -o yaml --dry-run=client | kubectl apply -f -
+                  else
+                    echo "No update needed."
+                  fi
